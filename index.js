@@ -1,14 +1,78 @@
-const WIDTH = window.innerWidth;
-const HEIGHT = window.innerHeight;
 let len;
 let sentence;
 
-const sys = [
+class Controls {
+    static move(controls) {
+      function mousePressed(e) {
+        controls.viewPos.isDragging = true;
+        controls.viewPos.prevX = e.clientX;
+        controls.viewPos.prevY = e.clientY;
+      }
+  
+      function mouseDragged(e) {
+        const {prevX, prevY, isDragging} = controls.viewPos;
+        if(!isDragging) return;
+  
+        const pos = {x: e.clientX, y: e.clientY};
+        const dx = pos.x - prevX;
+        const dy = pos.y - prevY;
+  
+        if(prevX || prevY) {
+          controls.view.x += dx;
+          controls.view.y += dy;
+          controls.viewPos.prevX = pos.x, controls.viewPos.prevY = pos.y
+        }
+      }
+  
+      function mouseReleased(e) {
+        controls.viewPos.isDragging = false;
+        controls.viewPos.prevX = null;
+        controls.viewPos.prevY = null;
+      }
+   
+      return {
+        mousePressed, 
+        mouseDragged, 
+        mouseReleased
+      }
+    }
+  
+    static zoom(controls) {
+      // function calcPos(x, y, zoom) {
+      //   const newX = width - (width * zoom - x);
+      //   const newY = height - (height * zoom - y);
+      //   return {x: newX, y: newY}
+      // }
+  
+      function worldZoom(e) {
+        const {x, y, deltaY} = e;
+        const direction = deltaY > 0 ? -1 : 1;
+        const factor = 0.05;
+        const zoom = 1 * direction * factor;
+  
+        const wx = (x-controls.view.x)/(width*controls.view.zoom);
+        const wy = (y-controls.view.y)/(height*controls.view.zoom);
+        
+        controls.view.x -= wx*width*zoom;
+        controls.view.y -= wy*height*zoom;
+        controls.view.zoom += zoom;
+      }
+  
+      return {worldZoom}
+    }
+}
+
+const controls = {
+    view: {x: 0, y: 0, zoom: 1},
+    viewPos: { prevX: null,  prevY: null,  isDragging: false },
+}
+
+let sys = [
     {
         name: "Lévy C Curve",
         axiom: "F",
         angle: Math.PI / 2, 
-        iteration: 11,
+        iteration: 6,
         lineLength: 5,
         rules: [
             {
@@ -25,7 +89,7 @@ const sys = [
         name: "Sierpinski triangle",
         axiom: "F-X-X",
         angle: (2*Math.PI) / 3, 
-        iteration: 4,
+        iteration: 5,
         lineLength: 20,
         rules: [
             {
@@ -42,7 +106,7 @@ const sys = [
         name: "Sierpinski arrowhead curve",
         axiom: "F",
         angle: Math.PI / 3, 
-        iteration: 6,
+        iteration: 7,
         lineLength: 5,
         rules: [
             {
@@ -79,38 +143,74 @@ function generate(selected){
 }
 
 function setup(){
-    createCanvas(WIDTH, HEIGHT);
+    canvas = createCanvas(window.innerWidth, window.innerHeight);
+    canvas.mouseWheel(e => Controls.zoom(controls).worldZoom(e));
     background(15, 10, 15);
 
+    options = createDiv("<h2>Options</h2>");
+    options.addClass("options");
+
+    iterLabel = createDiv("Iterations");
+    iterSlide = createSlider(0, 20, 8);
+    options.child(iterLabel);
+    options.child(iterSlide);
+    
+    lineLabel = createDiv("Line length");
+    lineSlide = createSlider(0, 100, 5);
+    options.child(lineLabel);
+    options.child(lineSlide);
+
+    colorLabel = createDiv("Line color");
+    colorPicker = createColorPicker("white");
+    options.child(colorLabel);
+    options.child(colorPicker);
+
+    
+    weightLabel = createDiv("Line weight");
+    lineWeight = createSlider(1, 100, 1);
+    options.child(weightLabel);
+    options.child(lineWeight);
+    
     selectSys = createSelect();
+
     for (let i = 0; i < sys.length; i++) {
         selectSys.option(sys[i].name, i)
     }
 
+    selectSys.selected(sys[0].name)
     selectSys.changed(() => {
-        clear()
-        background(15, 10, 15);
-        sentence = sys[selectSys.selected()].axiom
-        for (var gen = 0; gen < sys[selectSys.selected()].iteration; gen++) {
-            generate(selectSys.selected());
-        }
-        turtle(selectSys.selected());
+	    lineSlide.value(sys[selectSys.selected()].lineLenght);
+	    iterSlide.value(sys[selectSys.selected()].iteration);
     });
 }
 
 function draw(){
-    translate(Number.parseInt(WIDTH / 2), HEIGHT / 2);
+    translate(controls.view.x, controls.view.y);
+    scale(controls.view.zoom)
     rotate(-Math.PI / 2);
-    var r = 255;
-    var g = 50;
-    var b = 95;
-    stroke(Number.parseInt((r)), Number.parseInt((g)), Number.parseInt((b)));
+    stroke(colorPicker.value());
+    strokeWeight(lineWeight.value());
+
+    lineLabel.html(`Line length: ${lineSlide.value()}px`);
+    iterLabel.html(`Iterations: ${iterSlide.value()} <b>CAUTION!</b>`);
+    weightLabel.html(`Line weight: ${lineWeight.value()}`);
+    colorLabel.html(`Color: ${colorPicker.value()}`);
+    sys[selectSys.selected()].iteration = iterSlide.value();
+
+    clear()    
+    background(15, 10, 15);
+
+    sentence = sys[selectSys.selected()].axiom
+    for (var gen = 0; gen < sys[selectSys.selected()].iteration; gen++) {
+        generate(selectSys.selected());
+    }
+    turtle(selectSys.selected())
+
 }
 
 function turtle(selected) {
-    console.log(sys[selected]);
     const angle = sys[selected].angle;
-    len = sys[selected].lineLength;
+    len = lineSlide.value();
 
     for (var i = 0; i < sentence.length; i++) {
         var current = sentence.charAt(i);
@@ -118,9 +218,9 @@ function turtle(selected) {
             line(0, 0, 0, -len);
             translate(0, -len);
         }else if (current == "+"){
-            rotate(angle);
-        }else if (current == "-"){
             rotate(-angle);
+        }else if (current == "-"){
+            rotate(angle);
         } else if (current == "["){
             push();
         }else if (current == "]"){
@@ -128,3 +228,7 @@ function turtle(selected) {
         }
     }
 }
+
+window.mousePressed = e => Controls.move(controls).mousePressed(e)
+window.mouseDragged = e => Controls.move(controls).mouseDragged(e);
+window.mouseReleased = e => Controls.move(controls).mouseReleased(e)
