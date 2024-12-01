@@ -25,7 +25,7 @@ const sys = [
         name: "Sierpinski triangle",
         axiom: "F-X-X",
         angle: (2*Math.PI) / 3, 
-        iteration: 4,
+        iteration: 5,
         lineLength: 20,
         rules: [
             {
@@ -42,7 +42,7 @@ const sys = [
         name: "Sierpinski arrowhead curve",
         axiom: "F",
         angle: Math.PI / 3, 
-        iteration: 6,
+        iteration: 7,
         lineLength: 5,
         rules: [
             {
@@ -87,6 +87,8 @@ function setup(){
         selectSys.option(sys[i].name, i)
     }
 
+    selectSys.selected(sys[0].name)
+
     selectSys.changed(() => {
         clear()
         background(15, 10, 15);
@@ -99,7 +101,7 @@ function setup(){
 }
 
 function draw(){
-    translate(Number.parseInt(WIDTH / 2), HEIGHT / 2);
+    translate(WIDTH * 0.66, HEIGHT * 0.70);
     rotate(-Math.PI / 2);
     var r = 255;
     var g = 50;
@@ -118,9 +120,9 @@ function turtle(selected) {
             line(0, 0, 0, -len);
             translate(0, -len);
         }else if (current == "+"){
-            rotate(angle);
-        }else if (current == "-"){
             rotate(-angle);
+        }else if (current == "-"){
+            rotate(angle);
         } else if (current == "["){
             push();
         }else if (current == "]"){
